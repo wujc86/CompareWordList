@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>詞彙清單比對工具</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F7F5F0;
+    --surface: #FFFFFF;
+    --surface2: #F0EDE6;
+    --border: #D8D4CB;
+    --border-strong: #B0AA9F;
+    --text: #1A1916;
+    --text2: #5C5850;
+    --text3: #9C968C;
+    --accent: #2D6A4F;
+    --accent-light: #E8F4EE;
+    --accent2: #D4622A;
+    --accent2-light: #FBF0EA;
+    --accent3: #2A5F8F;
+    --accent3-light: #E8F0F8;
+    --tag-shared-bg: #E8F4EE;
+    --tag-shared: #1A4D38;
+    --tag-a-bg: #FBF0EA;
+    --tag-a: #8A3A12;
+    --tag-b-bg: #E8F0F8;
+    --tag-b: #1A3D5C;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    line-height: 1.6;
+  }
+
+  .app {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 2.5rem;
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 0.75rem;
+  }
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--accent);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .logo-icon svg { display: block; }
+
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    font-size: 0.9rem;
+    color: var(--text2);
+    margin-left: 52px;
+  }
+
+  .guide-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow);
+  }
+
+  .guide-box summary {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text2);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .guide-box summary::before {
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid var(--text3);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .guide-box[open] summary::before {
+    transform: rotate(90deg);
+  }
+
+  .guide-content {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    display: grid;
+    gap: 0.6rem;
+  }
+
+  .guide-item {
+    display: flex;
+    gap: 10px;
+    font-size: 0.875rem;
+    color: var(--text2);
+    align-items: flex-start;
+  }
+
+  .guide-num {
+    background: var(--surface2);
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text2);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .setting-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .setting-group label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text2);
+    white-space: nowrap;
+  }
+
+  .setting-group input[type="text"] {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 0.85rem;
+    font-family: 'DM Mono', monospace;
+    width: 140px;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .setting-group input[type="text"]:focus {
+    border-color: var(--accent);
+  }
+
+  .setting-group input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .input-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 640px) {
+    .input-grid { grid-template-columns: 1fr; }
+  }
+
+  .list-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .list-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .list-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-a { background: var(--accent2); }
+  .dot-b { background: var(--accent3); }
+
+  .list-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .word-count {
+    font-size: 0.75rem;
+    font-family: 'DM Mono', monospace;
+    color: var(--text3);
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+
+  .list-card textarea {
+    width: 100%;
+    height: 220px;
+    border: none;
+    resize: vertical;
+    padding: 1rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.825rem;
+    color: var(--text);
+    background: var(--surface);
+    outline: none;
+    line-height: 1.7;
+    display: block;
+  }
+
+  .list-card textarea::placeholder {
+    color: var(--text3);
+  }
+
+  .action-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-weight: 500;
+    font-family: 'Noto Sans TC', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    outline: none;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(45,106,79,0.25);
+  }
+
+  .btn-primary:hover { background: #245c43; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text2);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { background: var(--surface2); }
+
+  .btn-download {
+    background: var(--surface);
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+  }
+
+  .btn-download:hover { background: var(--accent-light); }
+
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  .result-section {
+    display: none;
+  }
+
+  .result-section.visible {
+    display: block;
+    animation: fadeUp 0.35s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+    flex-wrap: gap;
+    gap: 1rem;
+  }
+
+  .result-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.875rem;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 500px) {
+    .stats-row { grid-template-columns: 1fr; }
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    box-shadow: var(--shadow);
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--text3);
+    margin-bottom: 4px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-desc {
+    font-size: 0.75rem;
+    color: var(--text3);
+  }
+
+  .stat-shared .stat-value { color: var(--accent); }
+  .stat-a .stat-value { color: var(--accent2); }
+  .stat-b .stat-value { color: var(--accent3); }
+
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.25rem;
+  }
+
+  .tab {
+    padding: 8px 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2.5px solid transparent;
+    transition: all 0.15s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: 'Noto Sans TC', sans-serif;
+  }
+
+  .tab:hover { color: var(--text2); }
+
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .word-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    min-height: 80px;
+    box-shadow: var(--shadow);
+  }
+
+  .word-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    cursor: default;
+    transition: transform 0.1s;
+  }
+
+  .word-tag:hover { transform: scale(1.05); }
+
+  .tag-shared { background: var(--tag-shared-bg); color: var(--tag-shared); }
+  .tag-a { background: var(--tag-a-bg); color: var(--tag-a); }
+  .tag-b { background: var(--tag-b-bg); color: var(--tag-b); }
+
+  .empty-note {
+    font-size: 0.875rem;
+    color: var(--text3);
+    padding: 0.5rem;
+    font-style: italic;
+  }
+
+  .search-row {
+    margin-bottom: 0.875rem;
+  }
+
+  .search-row input {
+    width: 100%;
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-family: 'Noto Sans TC', sans-serif;
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .search-row input:focus { border-color: var(--accent); }
+  .search-row input::placeholder { color: var(--text3); }
+
+  .divider {
+    width: 1px;
+    height: 28px;
+    background: var(--border);
+  }
+
+  footer {
+    margin-top: 3rem;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text3);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo-row">
+      <div class="logo-icon">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <rect x="2" y="2" width="8" height="18" rx="2" fill="white" opacity="0.9"/>
+          <rect x="12" y="2" width="8" height="18" rx="2" fill="white" opacity="0.5"/>
+          <path d="M8 11 L12 11" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h1>詞彙清單比對工具</h1>
+    </div>
+    <p class="subtitle">貼上兩份詞彙清單，自動找出共有詞與各自專屬詞，並匯出 Excel</p>
+  </header>
+
+  <details class="guide-box" open>
+    <summary>使用說明</summary>
+    <div class="guide-content">
+      <div class="guide-item">
+        <span class="guide-num">1</span>
+        <span>在下方兩個欄位分別貼上你的詞彙清單。系統**預設會以「換行」作為切割依據**。</span>
+      </div>
+      <div class="guide-item">
+        <span class="guide-num">2</span>
+        <span>若詞彙間有其他符號，請在「分隔符號」欄位輸入。**每一個字元都會被視為獨立的分隔符號**（例如輸入 <code>,;、</code> 則碰到逗號、分號或頓號都會自動切割）。</span>
+      </div>
+      <div class="guide-item">
+        <span class="guide-num">3</span>
+        <span>系統會自動移除詞彙前後的**多餘空白**，以確保比對結果精確。</span>
+      </div>
+      <div class="guide-item">
+        <span class="guide-num">4</span>
+        <span>點「開始比對」後，結果會顯示三類：① 共有詞、② 清單 A 專屬、③ 清單 B 專屬。確認後可點「下載 Excel」匯出結果。</span>
+      </div>
+    </div>
+  </details>
+
+  <div class="settings-row">
+    <div class="setting-group">
+      <label for="delimiter">額外分隔符號</label>
+      <input type="text" id="delimiter" placeholder="例如：,;、" maxlength="20">
+    </div>
+    <div class="setting-group">
+      <input type="checkbox" id="ignoreCase">
+      <label for="ignoreCase" style="cursor:pointer">忽略大小寫</label>
+    </div>
+    <div class="setting-group">
+      <input type="checkbox" id="ignoreDup" checked>
+      <label for="ignoreDup" style="cursor:pointer">自動去除重複詞</label>
+    </div>
+  </div>
+
+  <div class="input-grid">
+    <div class="list-card">
+      <div class="list-card-header">
+        <div class="list-label">
+          <span class="dot dot-a"></span>
+          <span class="list-name">清單 A</span>
+        </div>
+        <span class="word-count" id="countA">0 詞</span>
+      </div>
+      <textarea id="listA" placeholder="貼上清單 A...&#10;蘋果&#10;香蕉,芒果;鳳梨"></textarea>
+    </div>
+    <div class="list-card">
+      <div class="list-card-header">
+        <div class="list-label">
+          <span class="dot dot-b"></span>
+          <span class="list-name">清單 B</span>
+        </div>
+        <span class="word-count" id="countB">0 詞</span>
+      </div>
+      <textarea id="listB" placeholder="貼上清單 B...&#10;蘋果&#10;西瓜,草莓"></textarea>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="btn btn-secondary" onclick="clearAll()">清除全部</button>
+    <button class="btn btn-primary" onclick="compare()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h12M8 2l6 6-6 6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      開始比對
+    </button>
+    <div class="divider"></div>
+    <button class="btn btn-download" id="dlBtn" onclick="downloadExcel()" disabled>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0l-3-3m3 3l3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11v1a2 2 0 002 2h8a2 2 0 002-2v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      下載 Excel
+    </button>
+  </div>
+
+  <div class="result-section" id="resultSection">
+    <div class="result-header">
+      <span class="result-title">比對結果</span>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card stat-shared">
+        <div class="stat-label">共有詞</div>
+        <div class="stat-value" id="statShared">0</div>
+        <div class="stat-desc">兩清單皆有</div>
+      </div>
+      <div class="stat-card stat-a">
+        <div class="stat-label">清單 A 專屬</div>
+        <div class="stat-value" id="statA">0</div>
+        <div class="stat-desc">僅出現於清單 A</div>
+      </div>
+      <div class="stat-card stat-b">
+        <div class="stat-label">清單 B 專屬</div>
+        <div class="stat-value" id="statB">0</div>
+        <div class="stat-desc">僅出現於清單 B</div>
+      </div>
+    </div>
+
+    <div class="search-row">
+      <input type="text" id="searchBox" placeholder="搜尋結果中的詞彙..." oninput="filterWords()">
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab(0, this)">共有詞</button>
+      <button class="tab" onclick="switchTab(1, this)">清單 A 專屬</button>
+      <button class="tab" onclick="switchTab(2, this)">清單 B 專屬</button>
+    </div>
+
+    <div class="tab-panel active" id="panel0">
+      <div class="word-grid" id="gridShared"></div>
+    </div>
+    <div class="tab-panel" id="panel1">
+      <div class="word-grid" id="gridA"></div>
+    </div>
+    <div class="tab-panel" id="panel2">
+      <div class="word-grid" id="gridB"></div>
+    </div>
+  </div>
+
+  <footer>詞彙清單比對工具 · 本機處理不外洩</footer>
+</div>
+
+<script>
+let results = { shared: [], onlyA: [], onlyB: [] };
+let currentTab = 0;
+
+/**
+ * 改進後的詞彙解析函數
+ */
+function parseWords(text, extraDelimiters, ignoreDup, ignoreCase) {
+  if (!text) return [];
+
+  // 1. 建立分隔符號集：預設一定要有「換行符號 \n」
+  let delims = ['\n'];
+  
+  // 2. 如果使用者有輸入額外符號，將其拆成單一字元加入
+  if (extraDelimiters) {
+    delims = delims.concat(extraDelimiters.split(''));
+  }
+
+  // 3. 轉義特殊正則字元並建立 RegExp
+  const escapedDelims = delims.map(d => d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const re = new RegExp('[' + escapedDelims.join('') + ']');
+
+  // 4. 切割、去除前後空白、過濾空值
+  let words = text.split(re)
+                  .map(w => w.trim())
+                  .filter(w => w.length > 0);
+
+  // 5. 去除重複
+  if (ignoreDup) {
+    const seen = new Set();
+    words = words.filter(w => {
+      const key = ignoreCase ? w.toLowerCase() : w;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+  return words;
+}
+
+function updateCount(id, words) {
+  document.getElementById(id).textContent = words.length + ' 詞';
+}
+
+// 監聽輸入即時更新數量
+['listA', 'listB', 'delimiter'].forEach((id) => {
+  document.getElementById(id).addEventListener('input', function() {
+    const delim = document.getElementById('delimiter').value;
+    const ignoreDup = document.getElementById('ignoreDup').checked;
+    const ignoreCase = document.getElementById('ignoreCase').checked;
+    
+    const wA = parseWords(document.getElementById('listA').value, delim, ignoreDup, ignoreCase);
+    const wB = parseWords(document.getElementById('listB').value, delim, ignoreDup, ignoreCase);
+    
+    updateCount('countA', wA);
+    updateCount('countB', wB);
+  });
+});
+
+function compare() {
+  const delim = document.getElementById('delimiter').value;
+  const ignoreDup = document.getElementById('ignoreDup').checked;
+  const ignoreCase = document.getElementById('ignoreCase').checked;
+
+  const rawA = parseWords(document.getElementById('listA').value, delim, ignoreDup, ignoreCase);
+  const rawB = parseWords(document.getElementById('listB').value, delim, ignoreDup, ignoreCase);
+
+  updateCount('countA', rawA);
+  updateCount('countB', rawB);
+
+  const keyFn = word => ignoreCase ? word.toLowerCase() : word;
+
+  // 使用 Map 紀錄，key 為比對用(可能小寫)，value 為原始文字
+  const mapA = new Map();
+  rawA.forEach(w => mapA.set(keyFn(w), w));
+
+  const mapB = new Map();
+  rawB.forEach(w => mapB.set(keyFn(w), w));
+
+  const shared = [], onlyA = [], onlyB = [];
+
+  mapA.forEach((orig, key) => {
+    if (mapB.has(key)) shared.push(orig);
+    else onlyA.push(orig);
+  });
+
+  mapB.forEach((orig, key) => {
+    if (!mapA.has(key)) onlyB.push(orig);
+  });
+
+  results = { shared, onlyA, onlyB };
+
+  document.getElementById('statShared').textContent = shared.length;
+  document.getElementById('statA').textContent = onlyA.length;
+  document.getElementById('statB').textContent = onlyB.length;
+
+  renderAll();
+
+  document.getElementById('resultSection').classList.add('visible');
+  document.getElementById('dlBtn').disabled = false;
+  document.getElementById('searchBox').value = '';
+  switchTab(0, document.querySelectorAll('.tab')[0]);
+  
+  // 捲動到結果區
+  setTimeout(() => {
+    document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+function renderGrid(id, words, tagClass, filter) {
+  const el = document.getElementById(id);
+  const q = filter ? filter.toLowerCase() : '';
+  const filtered = q ? words.filter(w => w.toLowerCase().includes(q)) : words;
+  
+  if (filtered.length === 0) {
+    el.innerHTML = '<span class="empty-note">' + (q ? '無符合搜尋的詞彙' : '（無詞彙）') + '</span>';
+    return;
+  }
+  
+  el.innerHTML = filtered.map(w =>
+    `<span class="word-tag ${tagClass}">${escHtml(w)}</span>`
+  ).join('');
+}
+
+function renderAll(filter) {
+  renderGrid('gridShared', results.shared, 'tag-shared', filter);
+  renderGrid('gridA', results.onlyA, 'tag-a', filter);
+  renderGrid('gridB', results.onlyB, 'tag-b', filter);
+}
+
+function filterWords() {
+  const q = document.getElementById('searchBox').value;
+  renderAll(q);
+}
+
+function switchTab(idx, btn) {
+  currentTab = idx;
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.tab-panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+}
+
+function clearAll() {
+  document.getElementById('listA').value = '';
+  document.getElementById('listB').value = '';
+  document.getElementById('delimiter').value = '';
+  document.getElementById('countA').textContent = '0 詞';
+  document.getElementById('countB').textContent = '0 詞';
+  document.getElementById('resultSection').classList.remove('visible');
+  document.getElementById('dlBtn').disabled = true;
+  results = { shared: [], onlyA: [], onlyB: [] };
+}
+
+function downloadExcel() {
+  const wb = XLSX.utils.book_new();
+
+  function makeSheet(words, colName) {
+    const data = [['#', colName]].concat(words.map((w, i) => [i + 1, w]));
+    return XLSX.utils.aoa_to_sheet(data);
+  }
+
+  XLSX.utils.book_append_sheet(wb, makeSheet(results.shared, '共有詞'), '共有詞');
+  XLSX.utils.book_append_sheet(wb, makeSheet(results.onlyA, '清單A專屬詞'), '清單A專屬詞');
+  XLSX.utils.book_append_sheet(wb, makeSheet(results.onlyB, '清單B專屬詞'), '清單B專屬詞');
+
+  const now = new Date();
+  const ts = now.getFullYear() + 
+             String(now.getMonth()+1).padStart(2,'0') + 
+             String(now.getDate()).padStart(2,'0') + "_" +
+             String(now.getHours()).padStart(2,'0') +
+             String(now.getMinutes()).padStart(2,'0');
+             
+  XLSX.writeFile(wb, `詞彙比對結果_${ts}.xlsx`);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
